@@ -5,9 +5,99 @@ date: "11/20/2021"
 output: github_document
 ---
 
+*With assistance from Jeff Goldsmith*
+
 ## Problem 1
 
+```{r}
+library(tidyverse)
+murder <- read_csv("homicide-data.csv", na = c("", "Unknown"))
+names(murder)
+```
 
+This dataset contains `r nrow(murder)` rows with the following variables:
+
+* `uid` - A unique identifier code
+* `reported_date` - Reported date of the homicide
+* `victim_last` - Victim's last name
+* `victim_first` - Victim's first name
+* `victim_race` - Victim's race (White, Black, Hispanic, Asian, or Other)
+* `victim_age` - Victim's age (median 28)
+* `victim_sex` - Victim's sex (Male, Female)
+* `city` and `state`
+* `lat` latitude and `lon` longitude
+* `disposition` - Status of the case (Closed by arrest, open/no arrest, or closed without arrest)
+
+```{r}
+murder <- murder %>%
+  #Create city_state variable
+  mutate(city_state = str_c(city, state)) %>%
+  relocate(city_state) %>%
+  #Is the case resolved?
+  mutate(resolution = case_when(
+    disposition == "Closed by arrest" ~ "solved",
+    disposition == "Closed without arrest" ~ "unsolved",
+    disposition == "Open/No arrest" ~ "unsolved"
+  )) %>%
+  filter(city_state != "TulsaAL")
+  
+#What is the unresolved rate in Baltimore, MD?
+baltimore <- murder %>%
+  filter(city_state == "BaltimoreMD")
+  
+balt_sum <- baltimore %>%
+  summarize(
+    unsolved = sum(resolution == "unsolved"),
+    n = n()
+  )
+
+balt_prop <- prop.test(
+  x = balt_sum %>% pull(unsolved),
+  n = balt_sum %>% pull(n)
+)
+
+balt_prop %>%
+  broom::tidy() %>%
+  pull(estimate)
+
+#Iterate over all cities
+##Create test function
+prop_test_function <- function(city_df) {
+  city_summary <- city_df %>%
+    summarize(
+      unsolved = sum(resolution == "unsolved"),
+      n = n()
+    )
+  
+  city_test <- prop.test(
+    x = city_summary %>% pull(unsolved),
+    n = city_summary %>% pull(n)
+  )
+  
+  return(city_test)
+}
+
+##Nest and iterate
+results <- murder %>%
+  nest(data = uid:resolution) %>%
+  mutate(
+    test_results = map(data, prop_test_function),
+    tidy_results = map(test_results, broom::tidy)
+  ) %>%
+  select(city_state, tidy_results) %>%
+  unnest(tidy_results) %>%
+  select(city_state, estimate, starts_with("conf"))
+
+head(results)
+
+#Plot estimates, CIs
+results %>%
+  mutate(city_state = fct_reorder(city_state, estimate)) %>%
+  ggplot(aes(x = city_state, y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
 
 ## Problem 2
 
@@ -37,7 +127,7 @@ As the experiment progressed, the experimental group's measurements appear to in
 ## Problem 3
 
 ```{r}
-library(tidyverse)
+#library(tidyverse)
 
 set.seed(10)
 
