@@ -5,9 +5,34 @@ date: "11/20/2021"
 output: github_document
 ---
 
+## Problem 1
+
+
+
 ## Problem 2
 
+```{r}
+con_exp <- tibble(filepath = paste0("data/", list.files("data")))
+con_exp <- con_exp %>%
+  #Get arm, subject_id from file names
+  mutate(arm = substr(filepath,6,8),
+         subject_id = substr(filepath,6,11)) %>%
+  
+  #Read in data
+  mutate(df = map(filepath, read_csv, show_col_types = FALSE)) %>%
+  
+  #Tidy
+  unnest(cols = c(df)) %>%
+  pivot_longer(cols = week_1:week_8, names_to = "week", values_to = "measurement") %>%
+  mutate(arm = fct_recode(arm, control = "con", experimental = "exp"))
+  
+#Plot
+con_exp %>%
+  ggplot(aes(x = week, y = measurement, color = arm, group = subject_id)) +
+  geom_line()
+```
 
+As the experiment progressed, the experimental group's measurements appear to increase overall relative to the control, though we might want to model this more formally. The appropriate regression model for the marginal trend would be a general linear model (generalized least squares); the appropriate model for the conditional trend would be a linear mixed-effects model.
 
 ## Problem 3
 
