@@ -1,0 +1,43 @@
+---
+title: "P8105 Homework 5"
+author: "Jesse R. Ames"
+date: "11/20/2021"
+output: github_document
+---
+
+## Problem 2
+
+
+
+## Problem 3
+
+```{r}
+library(tidyverse)
+
+set.seed(10)
+
+iris_with_missing = iris %>% 
+  map_df(~replace(.x, sample(1:150, 20), NA)) %>%
+  mutate(Species = as.character(Species))
+
+#Interpolation function
+interpolate <- function(x){
+  if (is.numeric(x)) {
+    #mean interpolation
+    mean_nm <- mean(x, na.rm = TRUE)
+    y <- x
+    y[which(is.na(y))] <- mean_nm
+    return(y)
+  }
+  else if (is.character(x)) {
+    #Fill in with "virginica"
+    y <- x
+    y[which(is.na(y))] <- "virginica"
+    return(y)
+  }
+}
+
+#map 
+iris_with_missing %>%
+  map(interpolate)
+```
